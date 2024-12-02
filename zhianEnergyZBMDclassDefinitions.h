@@ -34,7 +34,7 @@ public:
 class ZhianEnergyZBMS_PF80_FixedValue
 {
 public:
-    uint32_t
+    uint16_t
         packRatedVoltage,
         packRatedCapacity,
         maxDischargeCurrent,

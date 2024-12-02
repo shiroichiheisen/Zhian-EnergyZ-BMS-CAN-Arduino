@@ -268,28 +268,24 @@ void ZhianEnergyZBMS::pf81Case(can_frame &msg)
     case 0x0E:
     {
         fixedValue.packRatedVoltage = (msg.data[5] << 8 | msg.data[4]);
-        fixedValue.packRatedVoltage *= 10;
         break;
     }
 
     case 0x0F:
     {
         fixedValue.packRatedCapacity = (msg.data[5] << 8 | msg.data[4]);
-        fixedValue.packRatedCapacity *= 10;
         break;
     }
 
     case 0x10:
     {
         fixedValue.maxDischargeCurrent = (msg.data[5] << 8 | msg.data[4]);
-        fixedValue.maxDischargeCurrent *= 10;
         break;
     }
 
     case 0x11:
     {
         fixedValue.maxChargeCurrent = (msg.data[5] << 8 | msg.data[4]);
-        fixedValue.maxChargeCurrent *= 10;
         break;
     }
 
@@ -300,7 +296,6 @@ void ZhianEnergyZBMS::pf81Case(can_frame &msg)
 
 void ZhianEnergyZBMS::messageReceiverLoop()
 {
-    Serial.println(fixedValue.cellCount);
     if (battFirstRead > 0)
     {
         if (battFirstReadDelay.isExpired())
