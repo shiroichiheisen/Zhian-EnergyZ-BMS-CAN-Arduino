@@ -16,7 +16,7 @@ public:
     ZhianEnergyZBMS_PF82_CellTemperature temperature;
     ZhianEnergyZBMS_PF84_CellVoltage voltage;
     ZhianEnergyZBMS_PF86_CirculationTimes circulationTimes;
-    ZhianEnergyZBMS_PF80_OtherSop otherSop;
+    ZhianEnergyZBMS_PF88_OtherSop otherSop;
 
     void begin(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs, uint32_t spiFreq = 10000000, CAN_CLOCK mcpClockFreq = MCP_8MHZ, uint8_t spiBus = HSPI),
         loop();

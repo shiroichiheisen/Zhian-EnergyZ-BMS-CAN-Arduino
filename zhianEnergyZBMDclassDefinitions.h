@@ -48,13 +48,6 @@ struct ZhianEnergyZBMS_PF80_FixedValue
         otherTempCount;
 };
 
-struct ZhianEnergyZBMS_PF80_OtherSop
-{
-    uint16_t
-        sop500ms,
-        sop3s;
-};
-
 struct ZhianEnergyZBMS_PF82_CellTemperature
 {
     uint8_t
@@ -71,6 +64,13 @@ struct ZhianEnergyZBMS_PF86_CirculationTimes
 {
     uint16_t
         circulationTimes;
+};
+
+struct ZhianEnergyZBMS_PF88_OtherSop
+{
+    uint16_t
+        sop500ms,
+        sop3s;
 };
 
 #endif
