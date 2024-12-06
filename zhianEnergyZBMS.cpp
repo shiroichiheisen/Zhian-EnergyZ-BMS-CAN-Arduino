@@ -1,19 +1,26 @@
 #include "zhianEnergyZBMS.h"
 
-void ZhianEnergyZBMS::begin(uint8_t mcpCsPin)
+void ZhianEnergyZBMS::begin(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs, uint32_t spiFreq, CAN_CLOCK mcpClockFreq, uint8_t spiBus)
 {
-    mcp2515 = new MCP2515(mcpCsPin);
+    SPIClass *spi2 = new SPIClass(spiBus);
+
+    spi2->begin(sck, miso, mosi, cs);
+
+    mcp2515 = new MCP2515(cs, spiFreq, spi2);
 
     mcp2515->reset();
     mcp2515->setConfigMode();
-    mcp2515->setBitrate(CAN_1000KBPS, MCP_8MHZ);
+    mcp2515->setBitrate(CAN_1000KBPS, mcpClockFreq);
     mcp2515->setNormalMode();
 
     memset(heartBeatData.data, 0, 8);
     memset(voltage.cell, 0, sizeof(voltage.cell));
+    memset(temperature.sensor, 0, sizeof(temperature.sensor));
     memset(cellVoltCanFrame.data, 0, 8);
     memset(cellTempCanFrame.data, 0, 8);
     memset(circulationCanFrame.data, 0, 8);
+    memset(fixedValueCanFrame.data, 0, 8);
+    memset(otherSopCanFrame.data, 0, 8);
 
     heartBeatData.can_id = 0x984300FF;
     heartBeatData.can_dlc = 8;
@@ -61,21 +68,24 @@ void ZhianEnergyZBMS::stopCellVoltRequest()
 
 void ZhianEnergyZBMS::battOutLoop()
 {
+    if (!battOutDelay.isExpired() && battFirstRead == -1 && operation.batteryVoltage == 0)
+        return;
 
-    if (battOutDelay.isExpired() && battFirstRead != -1 && operation.batteryVoltage != 0)
-    {
-        fixedValueCanFrame.data[0] = 0x04;
-        battFirstRead = -1;
+    batteryIsConnected = false;
+    fixedValueCanFrame.data[0] = 0x04;
+    battFirstRead = -1;
 
-        memset(&chargingRequest, 0, sizeof(chargingRequest));
-        memset(&alarm, 0, sizeof(alarm));
-        memset(&operation, 0, sizeof(operation));
-        memset(&fixedValue, 0, sizeof(fixedValue));
-        memset(&temperature, 0, sizeof(temperature));
-        memset(&voltage, 0, sizeof(voltage));
-        memset(&circulationTimes, 0, sizeof(circulationTimes));
-        memset(&otherSop, 0, sizeof(otherSop));
-    }
+    cellTempRequestFlag = false;
+    cellVoltRequestFlag = false;
+
+    memset(&chargingRequest, 0, sizeof(chargingRequest));
+    memset(&alarm, 0, sizeof(alarm));
+    memset(&operation, 0, sizeof(operation));
+    memset(&fixedValue, 0, sizeof(fixedValue));
+    memset(&temperature, 0, sizeof(temperature));
+    memset(&voltage, 0, sizeof(voltage));
+    memset(&circulationTimes, 0, sizeof(circulationTimes));
+    memset(&otherSop, 0, sizeof(otherSop));
 }
 
 void ZhianEnergyZBMS::sendHeartBeat()
@@ -112,11 +122,18 @@ void ZhianEnergyZBMS::pf22Case(can_frame &msg)
     chargingRequest.chargingState = (msg.data[7] << 8 | msg.data[6]);
     battOutDelay.start(1500, AsyncDelay::MILLIS);
 
-    if (battFirstRead == -1)
-    {
-        battFirstReadDelay.start(50, AsyncDelay::MILLIS);
-        battFirstRead = 1;
-    }
+    if (battFirstRead != -1)
+        return;
+
+    batteryIsConnected = true;
+    battFirstReadDelay.start(50, AsyncDelay::MILLIS);
+    battFirstRead = 1;
+
+    cellTempRequestFlag = true;
+    cellVoltRequestFlag = true;
+
+    cellTempDelay.restart();
+    cellVoltDelay.restart();
 }
 
 void ZhianEnergyZBMS::pf24Case(can_frame &msg)
@@ -128,7 +145,7 @@ void ZhianEnergyZBMS::pf24Case(can_frame &msg)
 void ZhianEnergyZBMS::pf26Case(can_frame &msg)
 {
     operation.batteryVoltage = (msg.data[1] << 8 | msg.data[0]);
-    operation.batteryCurrent = (msg.data[3] << 8 | msg.data[2]) / 100;
+    operation.batteryCurrent = (msg.data[3] << 8 | msg.data[2]);
     operation.batterySOC = msg.data[4];
     operation.batterySOH = msg.data[5];
     operation.battery15sSOP = (msg.data[7] << 8 | msg.data[6]);
@@ -137,7 +154,7 @@ void ZhianEnergyZBMS::pf26Case(can_frame &msg)
 void ZhianEnergyZBMS::pf83Case(can_frame &msg)
 {
     for (int i = 0; i < msg.can_dlc; i++)
-        temperature.cell[i] = msg.data[i] - 40;
+        temperature.sensor[i] = msg.data[i] - 40;
 }
 
 void ZhianEnergyZBMS::pf85Case(can_frame &msg)
@@ -294,81 +311,81 @@ void ZhianEnergyZBMS::pf81Case(can_frame &msg)
     }
 }
 
-void ZhianEnergyZBMS::messageReceiverLoop()
+void ZhianEnergyZBMS::battInLoop()
 {
-    if (battFirstRead > 0)
+    if (battFirstRead <= 0 && !battFirstReadDelay.isExpired())
+        return;
+
+    if (battFirstRead >= 3)
     {
-        if (battFirstReadDelay.isExpired())
-        {
-            if (battFirstRead >= 3)
-            {
-                mcp2515->sendMessage(&fixedValueCanFrame);
-                fixedValueCanFrame.data[0] += 1;
+        mcp2515->sendMessage(&fixedValueCanFrame);
+        fixedValueCanFrame.data[0] += 1;
 
-                if (fixedValueCanFrame.data[0] == 0x0D)
-                    fixedValueCanFrame.data[0] = 0x0E;
-            }
-
-            if (battFirstRead == 1)
-                mcp2515->sendMessage(&circulationCanFrame);
-
-            if (battFirstRead == 2)
-                mcp2515->sendMessage(&otherSopCanFrame);
-
-            battFirstRead += 1;
-            if (battFirstRead > 18)
-                battFirstRead = 0;
-
-            battFirstReadDelay.restart();
-        }
+        if (fixedValueCanFrame.data[0] == 0x0D)
+            fixedValueCanFrame.data[0] = 0x0E;
     }
 
-    if (mcp2515->checkReceive())
+    else if (battFirstRead == 1)
+        mcp2515->sendMessage(&circulationCanFrame);
+
+    else if (battFirstRead == 2)
+        mcp2515->sendMessage(&otherSopCanFrame);
+
+    battFirstRead += 1;
+    if (battFirstRead > 18)
+        battFirstRead = 0;
+
+    battFirstReadDelay.restart();
+}
+
+void ZhianEnergyZBMS::messageReceiverLoop()
+{
+    if (!mcp2515->checkReceive())
+        return;
+
+    can_frame msg;
+    mcp2515->readMessage(&msg);
+    uint8_t batPfId = (msg.can_id >> 16) & 0xFF;
+
+    switch (batPfId)
     {
-        can_frame msg;
-        mcp2515->readMessage(&msg);
-        uint8_t batPfId = (msg.can_id >> 16) & 0xFF;
+    case 0x22:
+        pf22Case(msg);
+        break;
 
-        switch (batPfId)
-        {
-        case 0x22:
-            pf22Case(msg);
-            break;
+    case 0x24:
+        pf24Case(msg);
+        break;
 
-        case 0x24:
-            pf24Case(msg);
-            break;
+    case 0x26:
+        pf26Case(msg);
+        break;
 
-        case 0x26:
-            pf26Case(msg);
-            break;
+    case 0x81:
+        pf81Case(msg);
+        break;
 
-        case 0x81:
-            pf81Case(msg);
-            break;
+    case 0x83:
+        pf83Case(msg);
+        break;
 
-        case 0x83:
-            pf83Case(msg);
-            break;
+    case 0x85:
+        pf85Case(msg);
+        break;
 
-        case 0x85:
-            pf85Case(msg);
-            break;
+    case 0x87:
+        pf87Case(msg);
+        break;
 
-        case 0x87:
-            pf87Case(msg);
-            break;
+    case 0x89:
+        pf89Case(msg);
+        break;
 
-        case 0x89:
-            pf89Case(msg);
-            break;
+    case 0x28:
+        break;
 
-        case 0x28:
-            break;
-
-        default:
-            break;
-        }
+    default:
+        break;
     }
 }
 
@@ -377,4 +394,5 @@ void ZhianEnergyZBMS::loop()
     sendHeartBeat();
     messageReceiverLoop();
     battOutLoop();
+    battInLoop();
 }

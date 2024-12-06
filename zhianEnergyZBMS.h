@@ -16,9 +16,9 @@ public:
     ZhianEnergyZBMS_PF82_CellTemperature temperature;
     ZhianEnergyZBMS_PF84_CellVoltage voltage;
     ZhianEnergyZBMS_PF86_CirculationTimes circulationTimes;
-    ZhianEnergyZBMS_PF86_OtherSop otherSop;
+    ZhianEnergyZBMS_PF80_OtherSop otherSop;
 
-    void begin(uint8_t mcpCsPin),
+    void begin(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs, uint32_t spiFreq = 10000000, CAN_CLOCK mcpClockFreq = MCP_8MHZ, uint8_t spiBus = HSPI),
         loop();
 
     void startCellTempRequest(uint16_t requestInterval),
@@ -27,8 +27,9 @@ public:
     void startCellVoltRequest(uint16_t requestInterval),
         stopCellVoltRequest();
 
+    bool batteryIsConnected = false;
+
 private:
-    String alltudo[6];
     MCP2515 *mcp2515;
 
     struct can_frame
@@ -41,8 +42,8 @@ private:
 
     AsyncDelay
         heartBeatDelay{2000, AsyncDelay::MILLIS},
-        cellTempDelay,
-        cellVoltDelay,
+        cellTempDelay{1000, AsyncDelay::MILLIS},
+        cellVoltDelay{1000, AsyncDelay::MILLIS},
         battFirstReadDelay,
         battOutDelay;
 
@@ -55,6 +56,7 @@ private:
 
     void sendHeartBeat(),
         messageReceiverLoop(),
+        battInLoop(),
         battOutLoop(),
         pf22Case(can_frame &msg),
         pf24Case(can_frame &msg),

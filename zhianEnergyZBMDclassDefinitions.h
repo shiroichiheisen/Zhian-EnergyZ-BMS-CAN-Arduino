@@ -2,9 +2,8 @@
 #define ZHIAN_ENERGY_Z_BMS_CLASS_DEFINITIONS_H
 #include "Arduino.h"
 
-class ZhianEnergyZBMS_PF22_ChargingRequest
+struct ZhianEnergyZBMS_PF22_ChargingRequest
 {
-public:
     uint16_t
         chargingVoltage,
         maxChargingCurrent,
@@ -12,18 +11,16 @@ public:
         chargingState;
 };
 
-class ZhianEnergyZBMS_PF24_BatteryAlarm
+struct ZhianEnergyZBMS_PF24_BatteryAlarm
 {
-public:
     uint16_t
         alarm,
         attention;
 };
 
-class ZhianEnergyZBMS_PF26_BatteryOperation
+struct ZhianEnergyZBMS_PF26_BatteryOperation
 {
-public:
-    uint16_t
+    int16_t
         batteryVoltage = 0,
         batteryCurrent,
         batterySOC,
@@ -31,9 +28,8 @@ public:
         battery15sSOP;
 };
 
-class ZhianEnergyZBMS_PF80_FixedValue
+struct ZhianEnergyZBMS_PF80_FixedValue
 {
-public:
     uint16_t
         packRatedVoltage,
         packRatedCapacity,
@@ -52,32 +48,29 @@ public:
         otherTempCount;
 };
 
-class ZhianEnergyZBMS_PF86_CirculationTimes
+struct ZhianEnergyZBMS_PF80_OtherSop
 {
-public:
-    uint16_t
-        circulationTimes;
-};
-
-class ZhianEnergyZBMS_PF86_OtherSop
-{
-public:
     uint16_t
         sop500ms,
         sop3s;
 };
 
-class ZhianEnergyZBMS_PF82_CellTemperature
+struct ZhianEnergyZBMS_PF82_CellTemperature
 {
-public:
     uint8_t
-        cell[8];
+        sensor[8];
 };
 
-class ZhianEnergyZBMS_PF84_CellVoltage
+struct ZhianEnergyZBMS_PF84_CellVoltage
 {
-public:
     uint16_t
         cell[18];
 };
+
+struct ZhianEnergyZBMS_PF86_CirculationTimes
+{
+    uint16_t
+        circulationTimes;
+};
+
 #endif
