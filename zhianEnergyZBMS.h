@@ -9,6 +9,8 @@
 class ZhianEnergyZBMS
 {
 public:
+    ~ZhianEnergyZBMS();
+
     ZhianEnergyZBMS_PF22_ChargingRequest chargingRequest;
     ZhianEnergyZBMS_PF24_BatteryAlarm alarm;
     ZhianEnergyZBMS_PF26_BatteryOperation operation;

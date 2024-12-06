@@ -1,5 +1,10 @@
 #include "zhianEnergyZBMS.h"
 
+ZhianEnergyZBMS::~ZhianEnergyZBMS()
+{
+    delete mcp2515;
+}
+
 void ZhianEnergyZBMS::begin(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs, uint32_t spiFreq, CAN_CLOCK mcpClockFreq, uint8_t spiBus)
 {
     SPIClass *spi2 = new SPIClass(spiBus);
