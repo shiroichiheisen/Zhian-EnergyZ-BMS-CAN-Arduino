@@ -44,8 +44,8 @@ private:
 
     AsyncDelay
         heartBeatDelay{2000, AsyncDelay::MILLIS},
-        cellTempDelay{1000, AsyncDelay::MILLIS},
-        cellVoltDelay{1000, AsyncDelay::MILLIS},
+        cellTempDelay,
+        cellVoltDelay,
         battFirstReadDelay,
         battOutDelay;
 
